@@ -1,27 +1,10 @@
 from flask import Flask, render_template, request, jsonify
 import random
 import string
-import mysql.connector
 
 app = Flask(__name__)
 
 print("🔄 Starting Backend Server...")
-
-# -----------------------
-# MySQL Connection
-# -----------------------
-try:
-    db = mysql.connector.connect(
-        host="localhost",
-        user="root",
-        password="root",   # <-- change this
-        database="paswordmanager"
-    )
-    cursor = db.cursor(dictionary=True)
-    print("✅ Connected to MySQL Database: paswordmanager")
-
-except Exception as e:
-    print("❌ Database Connection Failed:", e)
 
 
 # -----------------------
@@ -32,8 +15,10 @@ def generate_password(length, use_upper, use_digits, use_symbols):
 
     if use_upper:
         characters += string.ascii_uppercase
+
     if use_digits:
         characters += string.digits
+
     if use_symbols:
         characters += string.punctuation
 
@@ -55,6 +40,7 @@ def generate():
     print("⚡ Generate API called")
 
     data = request.json
+
     username = data['username']
     pwd_type = data['type']
     length = int(data['length'])
@@ -68,37 +54,36 @@ def generate():
     else:
         characters = string.ascii_letters + string.digits
 
-    # Ensure username is included
-    base = username[:3]  # first 3 letters of username
+    base = username[:3]
 
-    remaining_length = length - len(base) - 2
+    remaining_length = max(length - len(base) - 2, 1)
 
-    random_part = ''.join(random.choice(characters) for _ in range(remaining_length))
-    special_part = random.choice(special_chars) + random.choice(special_chars)
+    random_part = ''.join(
+        random.choice(characters)
+        for _ in range(remaining_length)
+    )
+
+    special_part = (
+        random.choice(special_chars)
+        + random.choice(special_chars)
+    )
 
     password = base + random_part + special_part
 
-    cursor.execute(
-        "INSERT INTO passwords (username, password, type) VALUES (%s, %s, %s)",
-        (username, password, pwd_type)
-    )
-    db.commit()
+    return jsonify({
+        "password": password
+    })
 
-    print("💾 Password Stored Successfully")
-
-    return jsonify({"password": password})
 
 @app.route('/passwords', methods=['GET'])
 def get_passwords():
-    print("📥 Fetching Stored Passwords")
-    cursor.execute("SELECT * FROM passwords ORDER BY id DESC")
-    passwords = cursor.fetchall()
-    return jsonify(passwords)
+    return jsonify([])
 
 
 # -----------------------
 # Run Server
 # -----------------------
+
 if __name__ == '__main__':
-    print("🚀 Backend Running at http://127.0.0.1:5000")
-    app.run(debug=True)
+    print("🚀 Backend Running")
+    app.run(host='0.0.0.0', port=5000)
